@@ -1,0 +1,51 @@
+version: '3'
+
+services:
+  nc:
+    image: nextcloud:apache
+    ports:
+      - "80:80"
+    restart: always
+    volumes:
+      - ./valium/nextcloud/data:/var/www/html/data
+      - ./valium/nextcloud/config:/var/www/html/config
+    networks:
+      - redisnet
+      - dbnet
+    environment:
+      - REDIS_HOST=redis
+      - POSTGRES_HOST=db
+      - POSTGRES_PASSWORD=nextcloud
+      - POSTGRES_DB=nextcloud
+      - POSTGRES_USER=nextcloud
+
+  redis:
+    container_name: redis-nextcloud
+    image: redis:alpine
+    restart: always
+    networks:
+      - redisnet
+    expose:
+      - "6379"
+    volumes:
+      - ./valium/redis/data:/data
+
+  db:
+    container_name: postgres-nextcloud
+    image: postgres:alpine
+    environment:
+      - POSTGRES_PASSWORD=nextcloud
+      - POSTGRES_DB=nextcloud
+      - POSTGRES_USER=nextcloud
+    restart: always
+    volumes:
+      - ./valium/postgres/data:/var/lib/postgresql/data
+    networks:
+      - dbnet
+    expose:
+      - "5432"
+
+networks:
+  dbnet:
+  redisnet:
+
