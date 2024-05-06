@@ -53,8 +53,6 @@ services:
       - ./prometheus/:/etc/prometheus/
     ports:
       - 8776:9090
-    links:
-      - alertmanager:alertmanager
     networks:
       - prometheusnet
     restart: always
