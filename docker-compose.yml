@@ -4,7 +4,7 @@ services:
   nc:
     image: nextcloud:apache
     ports:
-      - "80:80"
+      - "7451:80"
     restart: always
     volumes:
       - ./valium/nextcloud/data:/var/www/html/data
