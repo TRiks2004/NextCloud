@@ -12,6 +12,7 @@ services:
     networks:
       - redisnet
       - dbnet
+      - prometheusnet
     environment:
       - REDIS_HOST=redis
       - POSTGRES_HOST=db
@@ -45,7 +46,24 @@ services:
     expose:
       - "5432"
 
+  prometheus:
+    image: prom/prometheus:v2.36.2
+    container_name: prometheus-nextcloud
+    volumes:
+      - ./prometheus/:/etc/prometheus/
+    ports:
+      - 8776:9090
+    links:
+      - alertmanager:alertmanager
+    networks:
+      - prometheusnet
+    restart: always
+
+
 networks:
   dbnet:
   redisnet:
+  prometheusnet:
+
+
 
