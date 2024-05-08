@@ -1,92 +1,80 @@
-version: '3'
+version: '3.7'
 
 services:
+
   nginx:
     restart: unless-stopped
     image: nginx:latest
     ports:
-      - 9764:443
+      - 8080:80
+      - 8443:443
     command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
     volumes:
-      - ./valium/nginx/configs/conf.d:/etc/nginx/conf.d:ro
-      - ./valium/nginx/configs/certbot:/etc/nginx/certbot:ro
-      - ./valium/certbot/conf:/etc/letsencrypt:rw
-      - ./valium/certbot/www:/var/www/certbot:rw
-      - ./valium/nextcloud:/var/www/html:ro
-      - ./valium/nginx/logs/nginx:/var/log/nginx
-  
+      - ./configs/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./configs/nginx/certbot:/etc/nginx/certbot:ro
+      - ./configs/certbot/conf:/etc/letsencrypt:rw
+      - ./configs/certbot/www:/var/www/certbot:rw
+      - ./nextcloud:/var/www/html:ro
+      - ./logs/nginx:/var/log/nginx
+    networks:
+      - nginx_net
+
   certbot:
     restart: unless-stopped
     image: certbot/certbot:latest
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
     volumes:
       - /etc/localtime:/etc/localtime:ro
-      - ./valium/certbot/conf:/etc/letsencrypt:rw
-      - ./valium/certbot/www:/var/www/certbot:rw
-
-  nc:
-    image: nextcloud:stable-fpm
-    ports:
-      - "7451:9000"
-    restart: unless-stopped
-    volumes:
-      - ./valium/nextcloud:/var/www/html:rw
+      - ./configs/certbot/conf:/etc/letsencrypt:rw
+      - ./configs/certbot/www:/var/www/certbot:rw
     networks:
-      - redisnet
-      - dbnet
-      - prometheusnet
+      - nginx_net
+
+  nextcloud:
+    restart: unless-stopped
+    image: nextcloud:fpm-alpine
+    ports:
+      - "127.0.0.1:9000:9000"
+    volumes:
+      - ./nextcloud:/var/www/html:rw
     environment:
       - REDIS_HOST=redis
-      - POSTGRES_HOST=db
+      - POSTGRES_HOST=postgres
       - POSTGRES_PASSWORD=nextcloud
       - POSTGRES_DB=nextcloud
       - POSTGRES_USER=nextcloud
-
-  redis:
-    container_name: redis-nextcloud
-    image: redis:alpine
-    restart: always
     networks:
-      - redisnet
-    expose:
-      - "6379"
-    volumes:
-      - ./valium/redis/data:/data
+      - redis_net
+      - postgres_net
+      - nginx_net
 
-  db:
+  postgres:
     container_name: postgres-nextcloud
     image: postgres:alpine
     environment:
       - POSTGRES_PASSWORD=nextcloud
       - POSTGRES_DB=nextcloud
       - POSTGRES_USER=nextcloud
-    restart: always
+    restart: unless-stopped
     volumes:
       - ./valium/postgres/data:/var/lib/postgresql/data
     networks:
-      - dbnet
+      - postgres_net
     expose:
       - "5432"
 
-  prometheus:
-    image: prom/prometheus:v2.36.2
-    container_name: prometheus-nextcloud
-    volumes:
-      - ./prometheus/:/etc/prometheus/
-    ports:
-      - 8776:9090
+  redis:
+    container_name: redis-nextcloud
+    image: redis:alpine
+    restart: unless-stopped
     networks:
-      - prometheusnet
-    restart: always
-
+      - redis_net
+    expose:
+      - "6379"
+    volumes:
+      - ./valium/redis/data:/data
 
 networks:
-  dbnet:
-  redisnet:
-  prometheusnet:
-
-
-
-
-
-
+  postgres_net:
+  redis_net:
+  nginx_net:
