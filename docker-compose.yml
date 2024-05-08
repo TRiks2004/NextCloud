@@ -1,14 +1,36 @@
 version: '3'
 
 services:
-  nc:
-    image: nextcloud:apache
+  nginx:
+    restart: unless-stopped
+    image: nginx:latest
     ports:
-      - "7451:80"
-    restart: always
+      - 9764:443
+    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
     volumes:
-      - ./valium/nextcloud/data:/var/www/html/data
-      - ./valium/nextcloud/config:/var/www/html/config
+      - ./valium/nginx/configs/conf.d:/etc/nginx/conf.d:ro
+      - ./valium/nginx/configs/certbot:/etc/nginx/certbot:ro
+      - ./valium/certbot/conf:/etc/letsencrypt:rw
+      - ./valium/certbot/www:/var/www/certbot:rw
+      - ./valium/nextcloud:/var/www/html:ro
+      - ./valium/nginx/logs/nginx:/var/log/nginx
+  
+  certbot:
+    restart: unless-stopped
+    image: certbot/certbot:latest
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ./valium/certbot/conf:/etc/letsencrypt:rw
+      - ./valium/certbot/www:/var/www/certbot:rw
+
+  nc:
+    image: nextcloud:stable-fpm
+    ports:
+      - "7451:9000"
+    restart: unless-stopped
+    volumes:
+      - ./valium/nextcloud:/var/www/html:rw
     networks:
       - redisnet
       - dbnet
@@ -62,6 +84,9 @@ networks:
   dbnet:
   redisnet:
   prometheusnet:
+
+
+
 
 
 
