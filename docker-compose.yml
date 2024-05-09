@@ -1,12 +1,12 @@
 version: '3.7'
 
 networks:
-  postgres_net: {}
-  redis_net: {}
-  nginx_net: {}
+  postgres_net:
+  redis_net:
+  nginx_net:
 
 volumes:
-  nextcloud_www: {}
+  nextcloud_www:
 
 services:
   nginx:
