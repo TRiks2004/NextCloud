@@ -12,7 +12,7 @@ services:
   nginx:
     container_name: nginx-nextcloud
     restart: unless-stopped
-    image: nginx:1.23-alpine  # Use specific version for better control
+    image: nginx:latest
     ports:
       - 9080:80
       - 9443:443
@@ -30,7 +30,7 @@ services:
   certbot:
     container_name: certbot-nextcloud
     restart: unless-stopped
-    image: certbot/certbot:1.30.0  # Use specific version for better control
+    image: certbot/certbot:latest
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
     volumes:
       - /etc/localtime:/etc/localtime:ro
@@ -50,11 +50,11 @@ services:
       - ./configs/nextcloud/data:/var/www/html/data:rw
       - nextcloud_www:/var/www/html:rw
     environment:
-      REDIS_HOST: redis
-      POSTGRES_HOST: postgres
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}  # Use variable from .env file
-      POSTGRES_DB: nextcloud
-      POSTGRES_USER: nextcloud
+      - REDIS_HOST=redis
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PASSWORD=nextcloud
+      - POSTGRES_DB=nextcloud
+      - POSTGRES_USER=nextcloud
     networks:
       - redis_net
       - nginx_net
@@ -62,11 +62,11 @@ services:
 
   postgres:
     container_name: postgres-nextcloud
-    image: postgres:15-alpine  # Use specific version for better control
+    image: postgres:alpine
     environment:
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}  # Use variable from .env file
-      POSTGRES_DB: nextcloud
-      POSTGRES_USER: nextcloud
+      - POSTGRES_PASSWORD=nextcloud
+      - POSTGRES_DB=nextcloud
+      - POSTGRES_USER=nextcloud
     restart: unless-stopped
     volumes:
       - ./database/postgres/data:/var/lib/postgresql/data
@@ -77,7 +77,7 @@ services:
 
   redis:
     container_name: redis-nextcloud
-    image: redis:7-alpine  # Use specific version for better control
+    image: redis:alpine
     restart: unless-stopped
     networks:
       - redis_net
