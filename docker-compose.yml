@@ -1,27 +1,36 @@
 version: '3.7'
 
-services:
+networks:
+  postgres_net: {}
+  redis_net: {}
+  nginx_net: {}
 
+volumes:
+  nextcloud_www: {}
+
+services:
   nginx:
+    container_name: nginx-nextcloud
     restart: unless-stopped
-    image: nginx:latest
+    image: nginx:1.23-alpine  # Use specific version for better control
     ports:
-      - 8080:80
-      - 8443:443
+      - 9080:80
+      - 9443:443
     command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
     volumes:
       - ./configs/nginx/conf.d:/etc/nginx/conf.d:ro
       - ./configs/nginx/certbot:/etc/nginx/certbot:ro
       - ./configs/certbot/conf:/etc/letsencrypt:rw
       - ./configs/certbot/www:/var/www/certbot:rw
-      - ./nextcloud:/var/www/html:ro
+      - nextcloud_www:/var/www/html:ro
       - ./logs/nginx:/var/log/nginx
     networks:
       - nginx_net
 
   certbot:
+    container_name: certbot-nextcloud
     restart: unless-stopped
-    image: certbot/certbot:latest
+    image: certbot/certbot:1.30.0  # Use specific version for better control
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
     volumes:
       - /etc/localtime:/etc/localtime:ro
@@ -31,33 +40,36 @@ services:
       - nginx_net
 
   nextcloud:
+    container_name: nextcloud
     restart: unless-stopped
     image: nextcloud:fpm-alpine
     ports:
       - "127.0.0.1:9000:9000"
     volumes:
-      - ./nextcloud:/var/www/html:rw
+      - ./configs/nextcloud/config:/var/www/html/config:rw
+      - ./configs/nextcloud/data:/var/www/html/data:rw
+      - nextcloud_www:/var/www/html:rw
     environment:
-      - REDIS_HOST=redis
-      - POSTGRES_HOST=postgres
-      - POSTGRES_PASSWORD=nextcloud
-      - POSTGRES_DB=nextcloud
-      - POSTGRES_USER=nextcloud
+      REDIS_HOST: redis
+      POSTGRES_HOST: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}  # Use variable from .env file
+      POSTGRES_DB: nextcloud
+      POSTGRES_USER: nextcloud
     networks:
       - redis_net
-      - postgres_net
       - nginx_net
+      - postgres_net
 
   postgres:
     container_name: postgres-nextcloud
-    image: postgres:alpine
+    image: postgres:15-alpine  # Use specific version for better control
     environment:
-      - POSTGRES_PASSWORD=nextcloud
-      - POSTGRES_DB=nextcloud
-      - POSTGRES_USER=nextcloud
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}  # Use variable from .env file
+      POSTGRES_DB: nextcloud
+      POSTGRES_USER: nextcloud
     restart: unless-stopped
     volumes:
-      - ./valium/postgres/data:/var/lib/postgresql/data
+      - ./database/postgres/data:/var/lib/postgresql/data
     networks:
       - postgres_net
     expose:
@@ -65,16 +77,11 @@ services:
 
   redis:
     container_name: redis-nextcloud
-    image: redis:alpine
+    image: redis:7-alpine  # Use specific version for better control
     restart: unless-stopped
     networks:
       - redis_net
     expose:
       - "6379"
     volumes:
-      - ./valium/redis/data:/data
-
-networks:
-  postgres_net:
-  redis_net:
-  nginx_net:
+      - ./database/redis/data:/data
